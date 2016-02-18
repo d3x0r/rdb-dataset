@@ -1,0 +1,66 @@
+
+Track a set of data.  Data in dataset may have enough information to
+create structures in a relational database.  Otherwise data can be
+shipped and shared using JSON.
+
+{ 
+dataset : {
+	relation_delete_rules : { 
+                none: 0
+                , cascade : 1
+                , setNull : 2
+                , setDefault : 3
+        }
+	relation_update_rules : { none: 0, cascade : 1, setNull : 2, setDefault : 3 }
+	row_version : { unchanged: 0, added : 1, modified : 2 }
+        
+	prefix : ""
+	tables : [ {
+        	tableName : ""
+                prefix : ""
+                dataset : {/*outer dataset*/}
+                columns : [ {
+                	name
+                        type
+                        precision
+                        default } ]
+                ${index.name}.rows : { binary_list(rows) }
+                rows : [ {
+                	table : { ... table... }
+                	colname1 : val
+                	colname2 : val
+                	colname3 : val
+                        /*
+                        ${relation_name} : [ rows ]
+                        ${relation_name} : rows
+                        ...
+                	data : [ {
+                        	value : ...
+                                , old_value : undefined
+                                , version : unchanged
+                                , ]
+                        //datamap : []
+                	} ]
+                } ]
+	relations : [ {
+        	name : ""
+                parent_table : ""
+                parent_columns : []
+                child_table : ""
+                child_columns : []
+                delete_rule : 
+                } ]
+	}
+}
+
+
+
+var ds = Dataset( );
+var table = ds.addTable( "Tablename" );
+var table2 = Table( "TableName2" ); ds.Tables.push( table2 );
+
+table2.Columns.push( DataColumn( "name", "type" ) );
+table2.Rows.push( ["jimmy"] );
+
+
+

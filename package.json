@@ -1,0 +1,23 @@
+{
+  "name": "rdb-dataset",
+  "version": "0.1.0",
+  "description": "Relational DataBase Dataset Manager",
+  "main": "rdb-dataset.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/d3x0r/rdb-dataset.git"
+  },
+  "keywords": [
+    "javascript",
+    "dataset"
+  ],
+  "author": "d3x0r",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/d3x0r/rdb-dataset/issues"
+  },
+  "homepage": "https://github.com/d3x0r/rdb-dataset#readme"
+}
