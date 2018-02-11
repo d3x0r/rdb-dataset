@@ -30,11 +30,17 @@
 
 
 const constants = {
-	NoAction : 1,
+	NoAction : 1, // on delete, on update
 	Cascade : 2,
 	SetNull : 3,
 	SetDefault : 4,
 	Restrict : 5,
+        Replace : 6, // uniqueRule
+	Ignore : 7,
+	Fail : 8,
+	Abort : 9,
+	Rollback : 10,
+
 };
 
 module.exports = exports = {
@@ -65,7 +71,7 @@ function DataSet() {
 		, push : push
 		, Relation : Relation
         }
-	function Relation( name, ) {
+	function Relation( name, parentTable, parentColumn, childTable, childColumn ) {
 		var relation = {
 			name : name, 
 			parent : { table : parentTable, column : parentColumn },
@@ -192,6 +198,7 @@ function DataTable( tableName ) {
 		, auto : false  // this is true if it was created 
         	, columns : []
 		, changedRows : []
+		, keys : []
                 , get rows() {
 			 return {
 				get value()  {
@@ -217,24 +224,38 @@ function DataTable( tableName ) {
 			return row;			
 		}
                 , Column : function( def ) { 
-	        	if( def.isName )
+			var propname = def.name;
+	        	if( def.isName && !def.hasOwnProperty( "name" ) ) {
         	        	def.name = singularize( this.name ) + "_name";
-	        	else if( !def.hasOwnProperty( "name" ) )
+				propname = "nameColumn";
+	        	} else if( def.primaryKey && !def.hasOwnProperty( "name" ) ) {
         	        	def.name = singularize( this.name ) + "_id";
+				propname = "idColumn";
+			}
 			if( !this.rowProto.table )
 				this.rowProto.table = this;
 
+			if( def.extra && !def.hasOwnProperty( "defaultValue" ) ) {
+				var defparts = def.extra.split( "default" );
+				def.defaultValue = defparts[1];
+			}
+
 			this.rowProto[def.name] = def.defaultValue;
 			var column = DataColumn( def );
+			column.index = this.columns.length;
 			this.columns.push( column );
-			this[def.name] = column;
+			if( !propname != def.name )
+				this[propname] = column;
+			if( def.name && !( def.name in this ) )
+				this[def.name] = column;
 			if( def.foreign ) {
 				if( !def.foreign.table in this ) {
 					this.dataset.Table( def.foreign.table );
 					this.dataset[def.foreign.table].auto = true;
-					this.dataset[def.foreign.table].Column( { name : def.foreign.column, type : def.type } );
+					this.dataset[def.foreign.table].Column( { name : def.foreign.column, type : def.type, precision : def.precision } );
 				}
-				this.dataSet.Relation( def.foreign.name || ( def.foreign.table.name + "_has_" + this.table.name )
+				console.log( "trying to create relation: ", def, "\n\n", this.dataSet );
+				this.dataSet.Relation( def.foreign.name || ( def.foreign.table.name + "_has_" + this.name )
 					, this.dataSet[def.foreign.table], this.dataSet[def.foreign.table][def.foreign.column] 
 					, this, column
 				);
@@ -432,6 +453,9 @@ function ValidateCreateTable( wordref ) {
 
 //----------------------------------------------------------------------
 
+function GrabString(  wordref ) {
+}
+
 function GrabName(  wordref ) {
 	var result = { name : "", quoted : false };
 	var name = null;
@@ -512,20 +536,30 @@ function GrabType( wordref )
 		if( type.text.toLowerCase() === ( "unsigned" ) )
 		{
 			type = SegAppend( type, SegDuplicate(wordref.word) );
-         	wordref.word = Next( wordref );
+         		wordref.word = Next( wordref );
 		}
+		return String( type );
+	}
+	return null;
+}
+
+function GrabPrecision( wordref )
+{
+	if( (wordref.word ) )
+	{
+		var type =  null;
 		if( wordref.word.text === '(' )
 		{
+			wordref.word = Next( wordref );
 			while( wordref.word.text !== ')' )
 			{
-				type = SegAppend( type, SegDuplicate(wordref.word ) );
+				type = SegAppend( type, SegDuplicate(wordref.word ) );				
 				wordref.word = Next( wordref );
 			}
-			type = SegAppend( type, SegDuplicate( wordref.word ) );
 			wordref.word = Next( wordref );
+			while( type && type.pred ) type = type.pred;
+			return String( type );
 		}
-		while( type && type.pred ) type = type.pred;
-		return String( type );
 	}
 	return null;
 }
@@ -534,15 +568,56 @@ function GrabType( wordref )
 
 function GrabExtra( wordref )
 {
+	var result = { extra : "", defaultValue : "" };
 	if( wordref.word )
 	{
 		var type = null;
-
+		var defaultString = true;
+		var defaultVal = null;
+		var inString = false;
+		var next_default = false;
 		while( (wordref.word) && ( ( wordref.word.text !== ',' ) && (wordref.word.text !== ')' ) ) )
 		{
 			if( wordref.word.text === ')' )
 				break;
-			type = SegAppend( type, SegDuplicate( wordref.word ) );
+			if( next_default ) {
+				if( wordref.word.text === "'" ) {
+					if( inString ) {
+						if( Next( wordref ).text === "'" ) {
+							defaultVal = SegAppend( defaultVal, SegDuplicate( wordref.word ) );
+						}
+						else {
+							next_default = false;
+						}
+					} else {
+						inString = true;
+					}
+				} else {
+					if( !inString ) {
+						defaultString = false;
+						next_default = false;
+					}
+					defaultVal = SegAppend( defaultVal, SegDuplicate( wordref.word ) );
+				}
+				if( !next_default ) {
+					if( defaultString )  {
+						while( defaultVal && defaultVal.pred ) defaultVal = defaultVal.pred;
+						defaultVal.spaces = 0;
+						defaultVal.tabs = 0;
+						result.defaultValue = String( defaultVal )
+					} else {
+						result.defaultValue = Number( defaultVal.text );
+					}
+				}
+			} else {
+				if( wordref.word.text.toLowerCase() === 'default' ) {
+					next_default = true;
+				}
+				if( !next_default )
+					type = SegAppend( type, SegDuplicate( wordref.word ) );
+			}
+
+
 			wordref.word = Next( wordref );
 		}
 
@@ -551,7 +626,8 @@ function GrabExtra( wordref )
 			while( type && type.pred ) type = type.pred;
 			type.spaces = 0;
 			type.tabs = 0;
-			return String( type )
+			result.extra = String( type );
+			return result
 		}
 	}
    	return null;
@@ -585,33 +661,33 @@ function AddConstraint( table, wordref )
 		if( wordref.word.text.toUpperCase() === ( "ON" ) )
 		{
 			wordref.word = Next( wordref );
-			if( wordref.word.text.toUpperCase() ===  ("CONFLICT" ) )
+			if( wordref.word.text.toUpperCase() === "CONFLICT"  )
 			{
 				wordref.word = Next( wordref );
-				if( StrCaseCmp( GetText(*word), WIDE( "REPLACE" ) ) == 0 )
+				if( wordref.word.text.toUpperCase() === "REPLACE" )
 				{
-					//table->keys.key[table->keys.count-1].flags.uniqueResolution = UNIQRES_REPLACE;
-					(*word) = NEXTLINE( *word );
+					key.uniqueRule = constants.Replace;
+					(wordref.word) = NEXTLINE( wordref );
 				}
-				if( StrCaseCmp( GetText(*word), WIDE( "IGNORE" ) ) == 0 )
+				else if( wordref.word.text.toUpperCase() === "IGNORE" )
 				{
-					//table->keys.key[table->keys.count-1].flags.uniqueResolution = UNIQRES_IGNORE;
-					(*word) = NEXTLINE( *word );
+					key.uniqueRule = constants.Ignore;
+					(wordref.word) = NEXTLINE( wordref );
 				}
-				if( StrCaseCmp( GetText(*word), WIDE( "FAIL" ) ) == 0 )
+				else if( wordref.word.text.toUpperCase() === "FAIL" ) 
 				{
-					//table->keys.key[table->keys.count-1].flags.uniqueResolution = UNIQRES_FAIL;
-					(*word) = NEXTLINE( *word );
+					key.uniqueRule = constants.Fail;
+					(wordref.word) = NEXTLINE( wordref );
 				}
-				if( StrCaseCmp( GetText(*word), WIDE( "ABORT" ) ) == 0 )
+				else if( wordref.word.text.toUpperCase() === "ABORT" )
 				{
-					//table->keys.key[table->keys.count-1].flags.uniqueResolution = UNIQRES_ABORT;
-					(*word) = NEXTLINE( *word );
+					key.uniqueRule = constants.Abort;
+					(wordref.word) = NEXTLINE( wordref );
 				}
-				if( StrCaseCmp( GetText(*word), WIDE( "ROLLBACK" ) ) == 0 )
+				else if( wordref.word.text.toUpperCase() === "ROLLBACK" ) 
 				{
-					//table->keys.key[table->keys.count-1].flags.uniqueResolution = UNIQRES_ROLLBACK;
-					(*word) = NEXTLINE( *word );
+					key.uniqueRule = constants.Rollback;
+					(wordref.word) = NEXTLINE( wordref );
 				}
 			}
 		}
@@ -820,15 +896,17 @@ function GetTableColumns( table, wordref )
 				else
 				{
 					type = GrabType( wordref );
+					precision = GrabPrecision( wordref );
 					extra = GrabExtra( wordref );
-					table.Column( {name:name, type:type, extra:extra } );
+					table.Column( {name:name, type:type, precision:precision, extra:extra?extra.extra:null, defaultValue: extra?extra.defaultValue:null } );
 				}
 			}
 			else
 			{
-				type = GrabType( word );
+				type = GrabType( wordref );
+				precision = GrabPrecision( wordref );
 				extra = GrabExtra( wordref );
-				table.Column( {name:name, type:type, extra:extra }  );
+				table.Column( {name:name, type:type, precision:precision, extra:extra?extra.extra:null, defaultValue: extra?extra.defaultValue:null }  );
 			}
 		}
 		if( !wordref.word )
@@ -1197,7 +1275,7 @@ exports.GetTableFromSQL = function( cmd ) {
 	var tmp;
 	var pParsed;
 	var pWord;
-	var pTable = exports.Table();
+	var pTable = exports.DataTable();
 
 	var tmp = Text( cmd);
 

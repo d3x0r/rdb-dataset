@@ -63,10 +63,10 @@ prefix could be used for tmp_users, tmp_transactions, tmp_options....
 | dataset | DataSet | the dataset this table is contained in |
 | prefix | string | a prefix used on the table name when translating to the database |
 | name | string | the name of this table; this should be variable name friendly |
-| &lt;constraint names&gt;| DataConstraint | constraint.  
+| &lt;constraint names&gt;| DataConstraint | constraint.
 | constraints | \[ DataConstraint \] | An array of constraints this table has.
-| &lt;index names&gt;| DataConstraint | constraint.  
-| indexes | \[ DataConstraint \] | An array of constraints this table has.
+| &lt;index names&gt;| DataIndex | index.
+| keys | \[ DataIndex \] | An array of indexes/keys this table has.
 
 ### DataColumn properties
 

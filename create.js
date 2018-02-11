@@ -1,5 +1,6 @@
 
 var rdb = require( "./rdb-dataset.js" );
+var db = rdb.DataSet();
 
 table = rdb.GetTableFromSQL( "CREATE TABLE `option2_exception` (\n\
   `option_exception_id` int(11) NOT NULL auto_increment,\n\
@@ -10,7 +11,7 @@ table = rdb.GetTableFromSQL( "CREATE TABLE `option2_exception` (\n\
   `option_id` int(11) NOT NULL default '0',\n\
   UNIQUE KEY oek (`option_exception_id`)\n\
   );\n" )
-
+db.push( table );
 
 console.log( table );
 
@@ -24,5 +25,7 @@ var sql = "CREATE TABLE `option2_map` ( \
  ) COMMENT='Table ID defines ID for use in OptionValues';\n";
 
 table = rdb.GetTableFromSQL( sql );
+db.push( table );
+
 console.log( table );
 

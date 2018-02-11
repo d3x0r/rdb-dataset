@@ -1,18 +1,66 @@
 var rdb = require( "./rdb-dataset.js" );
 
 var optiondb = rdb.DataSet();
-optiondb.Table( "option_name" );
-var col = optiondb.option_name.Column( { type: "guid", primaryKey : true, autoKey : ()=>Math.random() } );
-var namecol = optiondb.option_name.Column( { isName : true, type: "string", unique : true } )
+
+
+var optname =optiondb.Table( "option_name" );
+
+var col = optiondb.option_name.Column( { 
+	type: "guid", 
+	primaryKey : true, 
+	autoKey : ()=>Math.random() 
+} );
+var namecol = optiondb.option_name.Column( { 
+	isName : true, 
+	type: "string", 
+	unique : true 
+} )
+
+console.log( "optname:", optname );
 
 optiondb.Table( "option_map" );
-var idcol = optiondb.option_map.Column( { name : "option_id", type : "guid", primaryKey : true, autoKey : ()=>Math.random() } );
-var nameidx = optiondb.option_map.Column( { name : "option_name_id", type : "guid", indexed : true, foreign: { table : "option_name", column: "option_name_id", onUpdate:rdb.constants.Cascade, onDelete:rdb.constants.Cascade} } );
-var parentidcol = optiondb.option_map.Column( { name : "parent_option_id", type : "guid", foreign: { table : "option_map", column: "option_id", onUpdate:rdb.constants.Cascade, onDelete:rdb.constants.Cascade } } );
+var idcol = optiondb.option_map.Column( {
+	type : "guid",
+	primaryKey : true,
+	autoKey : ()=>Math.random()
+} );
+var nameidx = optiondb.option_map.Column( {
+	type : "guid",
+	indexed : true,
+	foreign: {
+		table : optiondb.option_name.name,
+		column: optiondb.option_name.idColumn.name,
+		onUpdate:rdb.constants.Cascade,
+		onDelete:rdb.constants.Cascade
+	}
+} );
+var parentidcol = optiondb.option_map.Column( {
+	name : "parent_option_id",
+	type : "guid",
+	foreign: {
+		table : optiondb.option_map.name,
+		column: optiondb.option_map.idColumn.name,
+		onUpdate:rdb.constants.Cascade,
+		onDelete:rdb.constants.Cascade
+	}
+} );
 
 optiondb.Table( "option_value" );
-optiondb.option_value.Column( { name : "option_id", type: "guid", foreign: { table : "option_map", column: "option_id", onUpdate:rdb.constants.Cascade, onDelete:rdb.constants.Cascade } } );
-optiondb.option_value.Column( { name : "number", type: "int" } );
+optiondb.option_value.Column( {
+	name : "option_id",
+	type: "guid",
+	foreign: {
+		table : optiondb.option_map.name,
+		column: optiondb.option_map.idColumn.name,
+		onUpdate:rdb.constants.Cascade,
+		onDelete:rdb.constants.Cascade
+	}
+} );
+optiondb.option_value.Column( {
+	name : "number",
+	type: "int"
+} );
+
 
 console.log(" So then we have:", optiondb.option_map.getCreate() )
 console.log(" So then we have:", optiondb.option_name.getCreate() )
@@ -29,3 +77,5 @@ optiondb.getValue = function( path, Default ) {
 	var option_path = path.split( '/' );
         
 }
+
+console.log(" So then we have:", optiondb )
